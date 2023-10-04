@@ -689,6 +689,12 @@ class ClearMLTracker(GeneralTracker):
     """
     A `Tracker` class that supports `clearml`. Should be initialized at the start of your script.
 
+    Environment:
+    - **CLEARML_PROJECT** (`str`, *optional*) - The default ClearML project name. Can be overwritten
+      by setting `project_name` in `task_init_kwargs`.
+    - **CLEARML_TASK** (`str`, *optional*) - The default ClearML task name. Can be overwritten
+      by setting `task_name` in `task_init_kwargs`.
+
     Args:
         run_name (`str`, *optional*):
             Name of the experiment. If ClearML's `Task.init`'s `task_name` and `project_name` are not
@@ -710,8 +716,14 @@ class ClearMLTracker(GeneralTracker):
             self.task = current_task
             return
 
-        task_init_kwargs.setdefault("task_name", run_name)
-        task_init_kwargs.setdefault("project_name", run_name)
+        if "CLEARML_PROJECT" in os.environ:
+            task_init_kwargs.setdefault("project_name", os.environ["CLEARML_PROJECT"])
+        else:
+            task_init_kwargs.setdefault("project_name", run_name)
+        if "CLEARML_TASK" in os.environ:
+            task_init_kwargs.setdefault("task_name", os.environ["CLEARML_TASK"])
+        else:
+            task_init_kwargs.setdefault("task_name", run_name)
         self.task = Task.init(**task_init_kwargs)
 
     @property
@@ -777,7 +789,8 @@ class ClearMLTracker(GeneralTracker):
     @on_main_process
     def finish(self):
         """
-        Close the ClearML task
+        Close the ClearML task. If the task was initialized externally (e.g. by manually calling `Task.init`),
+        this function is a noop
         """
         if not self._initialized_externally:
             self.task.close()
